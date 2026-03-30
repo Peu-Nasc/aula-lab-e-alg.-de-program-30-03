@@ -1,0 +1,163 @@
+#include <stdio.h> //Fornece as funções de entrada e saída, como o printf para exibir o jogo e o getchar ou scanf para ler o que o usuário digita.
+#include <stdlib.h> //é essencial para o comando system("clear"), que limpa a tela do terminal a cada rodada.
+#include <string.h> //É utilizada para funções como strlen (contar o tamanho da palavra) e strcmp (comparar se a palavra oculta já é igual à original).
+#include <unistd.h> //Define constantes e funções do sistema operacional Unix/Linux.
+#include <termios.h> //permite acessar a estrutura termios para modificar as configurações de baixo nível do terminal, como desativar o eco das teclas e a necessidade de apertar Enter.
+#include <stdbool.h> //Adiciona o tipo de dado bool ao C
+
+// Sugestões do que melhorar -> 
+// 1.Limite de digitar apenas uma letra/caracteres por vez
+// 2.Separar cada linha da palavra a ser adivinhada ou colocar um printf entre pareneses que digas quantas letras a palavra a ser adivinhada possui
+// 3.Criar um char tentadas[26] e, a cada jogada, verifique se a letra já existe lá. Se existir, avise o usuário: "Você já tentou essa!" sem descontar vidas.
+
+
+#define MAX 50
+struct termios oldt, newt;
+
+char palavraOriginal[MAX], palavraOculta[MAX];
+char dica[MAX];
+int e = 0;
+
+// A Configuração do terminal servem para alterar o comportamento padrão do console para criar uma experiência 
+// interativa. A confterminal() desativa o modo canônico (ICANON) e o eco (ECHO), permitindo que o programa capture 
+// cada tecla instantaneamente sem que ela apareça na tela ou dependa da tecla Enter. Isso é o que possibilita, por 
+// exemplo, substituir a digitação real por asteriscos (*). Já a restaurarterminal() devolve as configurações originais 
+// ao sistema; sem ela, o console do usuário permaneceria "mudo" e pararia de exibir o que é digitado mesmo após o 
+// encerramento do jogo.
+void confterminal(){
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+}
+
+void restaurarterminal(){
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+}
+
+// O Void Tela() é uilizado para montar o layout da tela do jogo, sendo iniciado pelo comando system clear, 
+// forçando uma limpeza na tela, depois ele monta a estrutura com o espaço da palavra de forma oculta, 
+// a dica do que se refere a palavra oculta, a quantidade de erros que o usuario ainda possui, é o local 
+// onde é declarado cada parte do boneco paa ser montado a cada erro cometido, e por fim ele envia a 
+// mensagem caso o usuario acerte a palava ou ele perca.
+void tela(){
+    system("clear");
+
+    printf("=====================================\n");
+    printf("         JOGO DA FORCA\n");
+    printf("=====================================\n\n");
+
+    printf("Palavra: %s\n", palavraOculta);
+    printf("Dica: %s\n", dica);
+    printf("Erros: %d/6\n\n", e);
+
+    switch(e){
+        case 0: printf("   \n"); break;
+        case 1: printf("   O\n"); break;
+        case 2: printf("   O\n   |\n"); break;
+        case 3: printf("   O\n  /|\n"); break;
+        case 4: printf("   O\n  /|\\\n"); break;
+        case 5: printf("   O\n  /|\\\n  /\n"); break;
+        case 6: printf("   O\n  /|\\\n  / \\\n"); break;
+    }
+}
+
+// A função escrita(int tipo) é um sistema de entrada customizado que substitui o scanf para dar controle total sobre o que o usuário digita. 
+// Através de um loop while, ela captura cada tecla individualmente com getchar(): se o tipo for 1 (Palavra), ela salva a letra mas exibe 
+// apenas um asterisco (*) para manter o segredo; se for 2 (Dica), ela exibe o caractere normalmente. A função também gerencia o Backspace 
+// manualmente, apagando o caractere da memória e da tela (\b \b), e só encerra a execução ao detectar a tecla Enter (\n), finalizando as 
+// strings com o caractere nulo (\0) para garantir a integridade dos dados.
+void escrita(int tipo)
+    int i = 0;
+    char c;
+
+    while (1) {
+        c = getchar();
+
+        if (c == '\n') break;
+
+        if ((c == 127 || c == '\b') && i > 0) {
+            i--;
+            printf("\b \b");
+        } 
+        else if (c >= 32 && c <= 126 && i < MAX - 1) {
+
+            if (tipo == 1) { // Palavra
+                palavraOriginal[i] = c;
+                palavraOculta[i] = '_';
+                i++;
+                printf("*");
+            }
+            else if (tipo == 2) { // Dica
+                dica[i++] = c;
+                printf("%c", c);
+            }
+        }
+        fflush(stdout);
+    }
+
+    if (tipo == 1) {
+        palavraOriginal[i] = '\0';
+        palavraOculta[i] = '\0';
+    } else if (tipo == 2) {
+        dica[i] = '\0';
+    }
+}
+
+// Void Jogar () é reponsavel po faz um padrão de repetição no qual vc vai digitar uma letra,se tiver 6 erros 
+// consecutivos ele gera na tela"Você perdeu!"" no qual existe uma palavra oculta, onde vc acertando, gera "vc venceu" 
+// e retorna para uma nova jogada.
+
+void jogar()
+    char letra;
+    bool enc;
+
+    while (e < 6) {
+        tela();
+
+        printf("\nDigite uma letra: ");
+        scanf(" %c", &letra);
+
+        enc = false;
+
+        for(int i = 0; i < strlen(palavraOriginal); i++){
+            if (palavraOriginal[i] == letra){
+                palavraOculta[i] = letra;
+                enc = true;
+            }
+        }
+
+        if (!enc) e++;
+
+        if (strcmp(palavraOriginal, palavraOculta) == 0){
+            tela();
+            printf("\nVocê venceu!\n");
+            return;
+        }
+    }
+
+    tela();
+    printf("\nVocê perdeu! Palavra: %s\n", palavraOriginal);
+}
+
+// A função int main() é responsavel por rodar as funções declaradas logo acima, primeio ela roda a função confterminal() depois ele solicita
+// que o usuário digite a palavra que ele quer que seja adivinhada no jogo, após isso ele solicita que seja digita uma dica da palavra a ser 
+// adivinhada, feito isso ele roda as funções; <void tela>,<void escrita> e <restaurarterminal> e por fim é lido a funçãom <jogar()>
+int main() {
+
+    confterminal();
+
+    printf("Digite a palavra: ");
+    fflush(stdout);
+    escrita(1);
+
+    printf("\nDigite a dica: ");
+    fflush(stdout);
+    escrita(2);
+
+    restaurarterminal(); 
+
+    jogar();
+
+    return 0;
+}
