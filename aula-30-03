@@ -67,7 +67,7 @@ void tela(){
 // apenas um asterisco (*) para manter o segredo; se for 2 (Dica), ela exibe o caractere normalmente. A função também gerencia o Backspace 
 // manualmente, apagando o caractere da memória e da tela (\b \b), e só encerra a execução ao detectar a tecla Enter (\n), finalizando as 
 // strings com o caractere nulo (\0) para garantir a integridade dos dados.
-void escrita(int tipo)
+void escrita(int tipo){
     int i = 0;
     char c;
 
@@ -108,7 +108,7 @@ void escrita(int tipo)
 // consecutivos ele gera na tela"Você perdeu!"" no qual existe uma palavra oculta, onde vc acertando, gera "vc venceu" 
 // e retorna para uma nova jogada.
 
-void jogar()
+void jogar() {
     char letra;
     bool enc;
 
